@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="信号換算">
+<meta name="theme-color" content="#1a1f2e">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231a1f2e'/%3E%3Ctext x='50' y='62' font-size='32' font-weight='800' text-anchor='middle' fill='%2338bdf8'%3E4-20%3C/text%3E%3Ctext x='50' y='84' font-size='14' font-weight='700' text-anchor='middle' fill='%237dd3fc'%3EmA%3C/text%3E%3C/svg%3E">
+<title>信号レンジ換算 | AeroTech Lab</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+  ::-webkit-scrollbar { display: none; }
+  input, select, button, textarea { font-family: inherit; font-size: 16px; }
+  button { -webkit-appearance: none; appearance: none; }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+  /* スマホのタップ反応を爆速にする魔法！ */
+  button, input, label, .preset-btn {
+    touch-action: manipulation;
+  }
+
+  :root {
+    --bg: #1a1f2e;
+    --bg-card: #242b3d;
+    --bg-card-grad: #2a3142;
+    --bg-input: #131826;
+    --border-mid: #1e3a5f;
+    --text: #e0f2fe;
+    --text-strong: #ffffff;
+    --text-mid: #bae6fd;
+    --text-dim: #7dd3fc;
+    --text-faint: #64748b;
+    --accent: #38bdf8;
+    --accent-strong: #0284c7;
+    --accent-bg: #082f49;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    width: 100%;
+    /* スクロールバグ防止のために overscroll-behavior と overflow-x を削除しました */
+  }
+  body {
+    padding-top: env(safe-area-inset-top, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* ヘッダー */
+  .header {
+    background: linear-gradient(180deg, #2a3142 0%, #1a1f2e 100%);
+    border-bottom: 1.5px solid #1e40af;
+    padding: 12px 14px;
+    position: sticky; top: 0; z-index: 50;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.5);
+  }
+  .header-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .header-left { flex: 1; min-width: 0; }
+  .header h1 {
+    font-size: 16px; font-weight: 700; color: var(--text-strong);
+    display: flex; align-items: center; gap: 6px; line-height: 1.2;
+  }
+  .pro-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #38bdf8, #0284c7);
+    color: white; font-size: 9px; font-weight: 800;
+    padding: 2px 7px; border-radius: 3px; letter-spacing: 1px;
+    box-shadow: 0 0 10px rgba(56,189,248,0.5);
+  }
+  .subtitle { font-size: 10px; color: var(--text-faint); margin-top: 2px; font-family: var(--font-mono); }
+  .icon-btn {
+    background: transparent; border: 1px solid var(--accent);
+    color: var(--accent); padding: 8px 10px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    flex-shrink: 0; min-height: 38px;
+  }
+
+  .container { padding: 12px; }
+
+  /* カード */
+  .card {
+    background: linear-gradient(180deg, var(--bg-card-grad), var(--bg-card));
+    border: 1px solid var(--border-mid);
+    border-radius: 14px; padding: 14px; margin-bottom: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+  .card-title {
+    font-size: 11px; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+  }
+  .card-title .num {
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    color: white; width: 20px; height: 20px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800;
+  }
+
+  /* 信号タイプ */
+  .signal-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .signal-tabs button {
+    background: var(--bg-input); border: 1px solid var(--border-mid);
+    color: var(--text-faint); padding: 14px 8px; border-radius: 10px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    min-height: 50px; transition: all 0.15s;
+  }
+  .signal-tabs button.active {
+    background: linear-gradient(135deg, var(--accent-strong), #0369a1);
+    color: white; border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(56,189,248,0.4);
+  }
+
+  /* プリセット横スクロール */
+  .preset-scroll {
+    display: flex; gap: 6px; margin-top: 10px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px; scrollbar-width: none;
+  }
+  .preset-scroll::-webkit-scrollbar { display: none; }
+  .preset-btn {
+    background: var(--bg-input); border: 1px solid var(--border-mid);
+    color: var(--text-faint); padding: 8px 14px;
+    border-radius: 99px; font-size: 12px; font-family: var(--font-mono);
+    font-weight: 700; cursor: pointer; white-space: nowrap;
+    flex-shrink: 0; min-height: 36px;
+  }
+  .preset-btn.active {
+    background: rgba(56,189,248,0.15); border-color: var(--accent); color: var(--accent);
+  }
+
+  /* レンジ */
+  .range-section {
+    background: var(--bg-input); border: 1px solid var(--border-mid);
+    border-radius: 10px; padding: 12px; margin-bottom: 10px;
+  }
+  .range-section-title {
+    font-size: 10px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1px; font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .range-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .range-cell { display: flex; flex-direction: column; gap: 4px; }
+  .range-cell label {
+    font-size: 10px; color: var(--text-faint);
+    font-family: var(--font-mono); text-transform: uppercase;
+  }
+  .range-cell input {
+    background: var(--bg); border: 1px solid var(--border-mid);
+    color: var(--text); padding: 10px 12px; font-size: 16px;
+    font-weight: 700; border-radius: 8px; outline: none;
+    font-family: var(--font-mono); width: 100%; text-align: right;
+  }
+  .range-cell input:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 2px rgba(56,189,248,0.2);
+  }
+
+  .unit-input-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .unit-input-row label {
+    font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+    font-weight: 700; flex-shrink: 0;
+  }
+  .unit-input-row input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border-mid);
+    color: var(--text); padding: 10px 12px; font-size: 14px;
+    border-radius: 8px; outline: none;
+  }
+
+  /* チェック */
+  .check-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg-input); border: 1px solid var(--border-mid);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .check-row label {
+    font-size: 13px; color: var(--text-mid); cursor: pointer;
+    display: flex; align-items: center; gap: 10px; flex: 1;
+  }
+  .check-row input[type="checkbox"] {
+    width: 22px; height: 22px; accent-color: var(--accent);
+    cursor: pointer; flex-shrink: 0;
+  }
+
+  /* 方向 */
+  .direction-tabs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+    padding: 4px; background: var(--bg-input);
+    border-radius: 12px; border: 1px solid var(--border-mid);
+    margin-bottom: 14px;
+  }
+  .direction-tabs button {
+    background: transparent; border: none; color: var(--text-faint);
+    padding: 12px 8px; border-radius: 8px; font-size: 13px;
+    font-weight: 700; cursor: pointer; min-height: 44px;
+  }
+  .direction-tabs button.active {
+    background: linear-gradient(135deg, var(--accent-strong), #0369a1);
+    color: white; box-shadow: 0 0 10px rgba(56,189,248,0.4);
+  }
+
+  /* メイン入力 */
+  .main-input-wrap {
+    background: var(--bg-input); border: 1.5px solid var(--border-mid);
+    border-radius: 12px; padding: 16px; transition: all 0.2s;
+  }
+  .main-input-wrap:focus-within {
+    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56,189,248,0.15);
+  }
+  .main-input-label {
+    font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1px;
+    font-weight: 700; margin-bottom: 10px;
+  }
+  .main-input-row { display: flex; align-items: baseline; gap: 8px; }
+  .main-input-row input {
+    flex: 1; background: transparent; border: none;
+    color: var(--text-strong); padding: 4px 0; font-size: 32px;
+    font-weight: 800; outline: none; font-family: var(--font-mono);
+    min-width: 0; width: 100%; letter-spacing: -0.5px;
+  }
+  .main-input-row .unit {
+    font-size: 16px; color: var(--accent); font-weight: 700;
+    font-family: var(--font-mono); flex-shrink: 0;
+  }
+
+  /* モード切替 */
+  .mode-toggle {
+    background: rgba(56,189,248,0.08); border: 1px solid var(--accent);
+    color: var(--accent); padding: 12px; border-radius: 10px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    width: 100%; margin-top: 10px; min-height: 44px;
+  }
+
+  /* 多点入力 */
+  .multi-input-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .multi-input-cell {
+    background: var(--bg-input); border: 1px solid var(--border-mid);
+    border-radius: 8px; padding: 8px 10px;
+  }
+  .multi-input-cell label {
+    font-size: 9px; color: var(--text-faint);
+    text-transform: uppercase; margin-bottom: 4px; display: block;
+  }
+  .multi-input-cell input {
+    width: 100%; background: transparent; border: none; color: var(--text);
+    padding: 2px 0; font-size: 16px; font-weight: 700;
+    text-align: center; outline: none; font-family: var(--font-mono);
+  }
+
+  /* 結果 */
+  .result-card {
+    background: linear-gradient(135deg, #082f49, #1a1f2e);
+    border: 1.5px solid var(--accent); border-radius: 16px;
+    padding: 18px 14px; margin-bottom: 12px;
+    box-shadow: 0 0 24px rgba(56,189,248,0.15);
+  }
+  .result-label {
+    font-size: 10px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 2px;
+    font-weight: 700; text-align: center; margin-bottom: 8px;
+  }
+  .result-main {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; flex-wrap: wrap; margin-bottom: 4px;
+  }
+  .result-value {
+    font-size: 42px; font-weight: 800; color: var(--text-strong);
+    font-family: var(--font-mono); letter-spacing: -1px;
+    text-shadow: 0 0 16px rgba(56,189,248,0.5); line-height: 1.1;
+    word-break: break-all;
+  }
+  .result-unit {
+    font-size: 18px; color: var(--accent); font-weight: 700;
+    margin-top: 14px;
+  }
+  
+  /* コピーボタンのスタイル */
+  .copy-btn {
+    background: rgba(56,189,248,0.15); border: 1px solid var(--accent);
+    color: var(--text-strong); padding: 6px 12px; border-radius: 8px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .copy-btn:active { background: var(--accent); color: var(--bg); }
+
+  .result-detail {
+    margin-top: 14px; padding-top: 14px;
+    border-top: 1px solid rgba(56,189,248,0.2);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .result-detail-item { text-align: center; }
+  .result-detail-label {
+    font-size: 9px; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;
+  }
+  .result-detail-value {
+    font-size: 12px; color: var(--text-mid);
+    font-family: var(--font-mono); font-weight: 700; word-break: break-all;
+  }
+
+  .scale-bar {
+    margin-top: 14px; padding-top: 14px;
+    border-top: 1px solid rgba(56,189,248,0.2);
+  }
+  .scale-track {
+    position: relative; height: 8px; background: var(--bg-input);
+    border-radius: 99px; border: 1px solid var(--border-mid);
+    margin: 6px 8px 18px;
+  }
+  .scale-fill {
+    position: absolute; height: 100%;
+    background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+    border-radius: 99px; transition: width 0.3s;
+  }
+  .scale-marker {
+    position: absolute; top: 50%; transform: translate(-50%, -50%);
+    width: 16px; height: 16px; background: white;
+    border: 3px solid var(--accent); border-radius: 50%;
+    box-shadow: 0 0 10px rgba(56,189,248,0.6);
+  }
+  .scale-labels {
+    display: flex; justify-content: space-between;
+    font-size: 9px; color: var(--text-faint);
+    font-family: var(--font-mono); padding: 0 4px; line-height: 1.3;
+  }
+  .scale-labels span { text-align: center; }
+
+  /* 多点テーブル */
+  .multi-table {
+    width: 100%; border-collapse: collapse;
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .multi-table th {
+    background: var(--bg-input); color: var(--accent);
+    padding: 8px 6px; text-align: right;
+    border-bottom: 2px solid var(--accent);
+    font-size: 9px; text-transform: uppercase;
+  }
+  .multi-table th:first-child { text-align: center; }
+  .multi-table td {
+    padding: 8px 6px; text-align: right;
+    border-bottom: 1px solid var(--border-mid); color: var(--text-mid);
+  }
+  .multi-table td:first-child {
+    text-align: center; color: var(--accent); font-weight: 700;
+  }
+
+  .warning-text {
+    background: rgba(251,191,36,0.1); border: 1px solid var(--warn);
+    color: var(--warn); padding: 10px 12px; border-radius: 8px;
+    font-size: 12px; margin-top: 10px; line-height: 1.5; text-align: center;
+  }
+
+  /* モーダル */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    display: none; align-items: flex-end; justify-content: center;
+    z-index: 100; backdrop-filter: blur(4px);
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--bg-card); border-top: 2px solid var(--accent);
+    border-radius: 18px 18px 0 0; width: 100%;
+    max-height: 90vh; max-height: 90dvh; overflow-y: auto;
+    box-shadow: 0 -8px 30px rgba(56,189,248,0.2);
+    animation: slideUp 0.3s ease;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-header {
+    position: sticky; top: 0; background: var(--bg-card);
+    padding: 14px 16px; border-bottom: 1px solid #1e40af;
+    display: flex; justify-content: space-between; align-items: center; z-index: 1;
+  }
+  .modal-title { font-size: 14px; font-weight: 700; color: var(--text-strong); }
+  .modal-close {
+    background: var(--bg-input); border: 1px solid var(--border-mid);
+    color: var(--text-mid); width: 32px; height: 32px;
+    border-radius: 50%; cursor: pointer; font-size: 14px;
+  }
+  .modal-body { padding: 16px; }
+  .modal-body h3 {
+    font-size: 12px; color: var(--accent); margin: 14px 0 6px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .modal-body p, .modal-body li {
+    font-size: 13px; color: var(--text-mid);
+    line-height: 1.6; margin-bottom: 4px;
+  }
+  .modal-body ul { padding-left: 18px; }
+  .formula {
+    background: var(--bg-input); padding: 10px;
+    border-radius: 8px; border-left: 3px solid var(--accent);
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-mid); line-height: 1.5; margin: 6px 0;
+    overflow-x: auto; white-space: pre;
+  }
+
+  .footer-note {
+    font-size: 9px; color: var(--text-faint); text-align: center;
+    padding: 16px 12px; line-height: 1.6; font-family: var(--font-mono);
+    border-top: 1px solid var(--border-mid); margin-top: 8px;
+  }
+  .footer-note strong { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-row">
+    <div class="header-left">
+      <h1>⚡ 信号レンジ換算 <span class="pro-badge">PRO</span></h1>
+      <div class="subtitle">4-20mA / V / Ω / Hz</div>
+    </div>
+    <button class="icon-btn" id="infoBtn">📐 式</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <div class="card-title"><span class="num">1</span>信号の種類</div>
+    <div class="signal-tabs">
+      <button class="active" data-signal="current">⚡ 電流</button>
+      <button data-signal="voltage">🔌 電圧</button>
+      <button data-signal="resistance">🌀 抵抗</button>
+      <button data-signal="frequency">📶 周波数</button>
+    </div>
+    <div class="preset-scroll" id="presetArea"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num">2</span>レンジ設定</div>
+
+    <div class="range-section">
+      <div class="range-section-title">📡 信号レンジ</div>
+      <div class="range-row">
+        <div class="range-cell">
+          <label>最小</label>
+          <input type="number" id="signalLow" step="any" inputmode="decimal">
+        </div>
+        <div class="range-cell">
+          <label>最大</label>
+          <input type="number" id="signalHigh" step="any" inputmode="decimal">
+        </div>
+      </div>
+    </div>
+
+    <div class="range-section">
+      <div class="range-section-title">📊 工学値レンジ</div>
+      <div class="range-row">
+        <div class="range-cell">
+          <label>最小</label>
+          <input type="number" id="engLow" step="any" inputmode="decimal" value="0">
+        </div>
+        <div class="range-cell">
+          <label>最大</label>
+          <input type="number" id="engHigh" step="any" inputmode="decimal" value="100">
+        </div>
+      </div>
+      <div class="unit-input-row">
+        <label>単位</label>
+        <input type="text" id="engUnit" value="%RH" placeholder="例: °C, MPa">
+      </div>
+    </div>
+
+    <div class="check-row">
+      <label>
+        <input type="checkbox" id="reverseRange">
+        逆向きレンジ（4mA→100%、20mA→0%）
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num">3</span>換算</div>
+    <div class="direction-tabs">
+      <button class="active" data-direction="s2e">信号 → 工学値</button>
+      <button data-direction="e2s">工学値 → 信号</button>
+    </div>
+
+    <div id="singleInput">
+      <div class="main-input-wrap">
+        <div class="main-input-label" id="mainInputLabel">信号値</div>
+        <div class="main-input-row">
+          <input type="number" id="mainInput" step="any" inputmode="decimal">
+          <span class="unit" id="mainInputUnit">mA</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="mode-toggle" id="multiToggle">📋 多点計算モード</button>
+
+    <div id="multiInput" style="display:none;">
+      <div style="font-size:11px;color:var(--text-faint);margin:10px 2px 8px;">複数点を一気に計算（最大6点）</div>
+      <div class="multi-input-list" id="multiPoints"></div>
+    </div>
+  </div>
+
+  <div id="resultArea"></div>
+</div>
+
+<div class="footer-note">
+  <strong>❄ AeroTech Lab ❄</strong><br>
+  SIGNAL RANGE CONVERTER  //  v1.0 (Jenny's Update✨)<br>
+  <span style="font-size:9px;opacity:0.6;">※ 線形比例の理論値です。実機では校正値を確認してください。</span>
+</div>
+
+<div class="modal-overlay" id="infoModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📐 計算式と原理</div>
+      <button class="modal-close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <h3>線形換算の基本式</h3>
+      <p>信号レンジと工学値レンジを線形にマッピング。</p>
+      <div class="formula">▸ 信号 → 工学値
+EU = EL_min + (S - SL_min)
+   × (EL_max - EL_min)
+   / (SL_max - SL_min)
+
+▸ 工学値 → 信号
+S = SL_min + (EU - EL_min)
+  × (SL_max - SL_min)
+  / (EL_max - EL_min)</div>
+
+      <h3>一般的な信号規格</h3>
+      <ul>
+        <li><strong>4-20 mA</strong>: 業界標準。ノイズに強く、断線検出も可能</li>
+        <li><strong>0-20 mA</strong>: 旧規格</li>
+        <li><strong>1-5 V</strong>: 4-20mAを250Ωで電圧変換</li>
+        <li><strong>0-10 V</strong>: ヨーロッパ系、HVAC機器で多用</li>
+      </ul>
+
+      <h3>4-20mAが標準な理由</h3>
+      <ul>
+        <li><strong>0mA = 断線</strong>として検出可能</li>
+        <li>電流値は配線抵抗の影響を受けない</li>
+        <li>電源と信号を1ペアで送れる（2線式）</li>
+      </ul>
+
+      <h3>逆向きレンジ</h3>
+      <p>「信号MIN = 工学値MAX」のケース。例: 4mA = 100%、20mA = 0%</p>
+
+      <h3>周波数信号</h3>
+      <p>渦流量計などのパルス出力に対応。Hzから流量への線形換算。</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// コピー機能
+window.copyToClipboard = function(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    if(btn) {
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '✅ コピーOK!';
+      btn.style.background = 'var(--accent-strong)';
+      btn.style.color = 'white';
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.background = '';
+        btn.style.color = '';
+      }, 1500);
+    }
+  }).catch(err => {
+    alert('コピーに失敗しちゃった💦');
+  });
+};
+
+const PRESETS = {
+  current: [
+    { label: "4-20 mA", low: 4, high: 20, unit: "mA" },
+    { label: "0-20 mA", low: 0, high: 20, unit: "mA" },
+    { label: "0-100 mA", low: 0, high: 100, unit: "mA" },
+    { label: "カスタム", custom: true, unit: "mA" },
+  ],
+  voltage: [
+    { label: "1-5 V", low: 1, high: 5, unit: "V" },
+    { label: "0-5 V", low: 0, high: 5, unit: "V" },
+    { label: "0-10 V", low: 0, high: 10, unit: "V" },
+    { label: "0-1 V", low: 0, high: 1, unit: "V" },
+    { label: "0-100 mV", low: 0, high: 100, unit: "mV" },
+    { label: "カスタム", custom: true, unit: "V" },
+  ],
+  resistance: [
+    { label: "0-1 kΩ", low: 0, high: 1000, unit: "Ω" },
+    { label: "0-10 kΩ", low: 0, high: 10000, unit: "Ω" },
+    { label: "Pt100 範囲", low: 100, high: 138.5, unit: "Ω" },
+    { label: "カスタム", custom: true, unit: "Ω" },
+  ],
+  frequency: [
+    { label: "0-1 kHz", low: 0, high: 1000, unit: "Hz" },
+    { label: "0-10 kHz", low: 0, high: 10000, unit: "Hz" },
+    { label: "0-100 Hz", low: 0, high: 100, unit: "Hz" },
+    { label: "カスタム", custom: true, unit: "Hz" },
+  ],
+};
+
+const state = {
+  signal: "current", preset: 0,
+  signalLow: 4, signalHigh: 20, signalUnit: "mA",
+  engLow: 0, engHigh: 100, engUnit: "%RH",
+  reverse: false, direction: "s2e", mainInput: 12,
+  multiMode: false, multiInputs: [4, 8, 12, 16, 20, ""],
+};
+
+function signalToEng(s) {
+  const sL = state.signalLow, sH = state.signalHigh;
+  const eL = state.reverse ? state.engHigh : state.engLow;
+  const eH = state.reverse ? state.engLow : state.engHigh;
+  if (sH === sL) return NaN;
+  return eL + (s - sL) * (eH - eL) / (sH - sL);
+}
+function engToSignal(e) {
+  const sL = state.signalLow, sH = state.signalHigh;
+  const eL = state.reverse ? state.engHigh : state.engLow;
+  const eH = state.reverse ? state.engLow : state.engHigh;
+  if (eH === eL) return NaN;
+  return sL + (e - eL) * (sH - sL) / (eH - eL);
+}
+function fmt(v, max = 4) {
+  if (!isFinite(v) || isNaN(v)) return "—";
+  const absV = Math.abs(v);
+  if (absV === 0) return "0";
+  if (absV >= 1000) return v.toFixed(2);
+  if (absV >= 100) return v.toFixed(3);
+  if (absV >= 10) return v.toFixed(4);
+  return v.toFixed(max);
+}
+function getPercent(s) {
+  const sL = state.signalLow, sH = state.signalHigh;
+  if (sH === sL) return 0;
+  return ((s - sL) / (sH - sL)) * 100;
+}
+
+function renderPresets() {
+  const area = document.getElementById("presetArea");
+  const presets = PRESETS[state.signal];
+  area.innerHTML = presets.map((p, i) => `
+    <button class="preset-btn ${state.preset === i ? 'active' : ''}" data-preset="${i}">${p.label}</button>
+  `).join("");
+  area.querySelectorAll("[data-preset]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      const idx = parseInt(e.currentTarget.dataset.preset);
+      state.preset = idx;
+      const preset = presets[idx];
+      if (!preset.custom) {
+        state.signalLow = preset.low;
+        state.signalHigh = preset.high;
+      }
+      state.signalUnit = preset.unit;
+      state.mainInput = (state.signalLow + state.signalHigh) / 2;
+      state.multiInputs = [
+        state.signalLow,
+        state.signalLow + (state.signalHigh - state.signalLow) * 0.25,
+        state.signalLow + (state.signalHigh - state.signalLow) * 0.5,
+        state.signalLow + (state.signalHigh - state.signalLow) * 0.75,
+        state.signalHigh, ""
+      ];
+      render();
+    });
+  });
+}
+
+function render() {
+  renderPresets();
+  document.getElementById("signalLow").value = state.signalLow;
+  document.getElementById("signalHigh").value = state.signalHigh;
+  document.getElementById("engLow").value = state.engLow;
+  document.getElementById("engHigh").value = state.engHigh;
+  document.getElementById("engUnit").value = state.engUnit;
+  document.getElementById("reverseRange").checked = state.reverse;
+
+  const isS2E = state.direction === "s2e";
+  document.getElementById("mainInputLabel").textContent = isS2E ? "信号値" : "工学値";
+  document.getElementById("mainInputUnit").textContent = isS2E ? state.signalUnit : state.engUnit;
+  // 空文字対応
+  document.getElementById("mainInput").value = state.mainInput === "" ? "" : state.mainInput;
+
+  document.getElementById("singleInput").style.display = state.multiMode ? "none" : "block";
+  document.getElementById("multiInput").style.display = state.multiMode ? "block" : "none";
+  document.getElementById("multiToggle").textContent = state.multiMode
+    ? "📍 単点モードに戻る" : "📋 多点計算モード";
+
+  if (state.multiMode) renderMultiInputs();
+  renderResult();
+}
+
+function renderMultiInputs() {
+  const area = document.getElementById("multiPoints");
+  const isS2E = state.direction === "s2e";
+  const unit = isS2E ? state.signalUnit : state.engUnit;
+  area.innerHTML = state.multiInputs.map((v, i) => `
+    <div class="multi-input-cell">
+      <label>点${i+1} [${unit}]</label>
+      <input type="number" step="any" inputmode="decimal" value="${v}" data-point="${i}">
+    </div>
+  `).join("");
+  area.querySelectorAll("[data-point]").forEach(inp => {
+    inp.addEventListener("input", e => {
+      const idx = parseInt(e.target.dataset.point);
+      const val = e.target.value;
+      state.multiInputs[idx] = val === "" ? "" : parseFloat(val);
+      renderResult();
+    });
+  });
+}
+
+function renderResult() {
+  const area = document.getElementById("resultArea");
+  const isS2E = state.direction === "s2e";
+
+  if (state.multiMode) {
+    const fromUnit = isS2E ? state.signalUnit : state.engUnit;
+    const toUnit = isS2E ? state.engUnit : state.signalUnit;
+    const rows = state.multiInputs.map((v, i) => {
+      if (v === "" || isNaN(parseFloat(v))) return null;
+      const input = parseFloat(v);
+      const output = isS2E ? signalToEng(input) : engToSignal(input);
+      const pct = isS2E ? getPercent(input) : getPercent(engToSignal(input));
+      return { i, input, output, pct };
+    }).filter(Boolean);
+
+    if (rows.length === 0) {
+      area.innerHTML = `<div class="warning-text">⚠ 計算する点を入力してね！</div>`;
+      return;
+    }
+    area.innerHTML = `
+      <div class="card">
+        <div class="card-title"><span class="num">📊</span>多点計算結果</div>
+        <table class="multi-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>入力<br>[${fromUnit}]</th>
+              <th>出力<br>[${toUnit}]</th>
+              <th>%</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td>${r.i + 1}</td>
+                <td>${fmt(r.input)}</td>
+                <td>${fmt(r.output)}</td>
+                <td>${fmt(r.pct, 1)}%</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+    return;
+  }
+
+  // 単点モードの空文字チェック
+  if (state.mainInput === "" || isNaN(state.mainInput)) {
+    area.innerHTML = `<div class="warning-text" style="font-size:14px; padding:16px;">💡 数値を入力してね！</div>`;
+    return;
+  }
+
+  const input = state.mainInput;
+  const output = isS2E ? signalToEng(input) : engToSignal(input);
+  const signalVal = isS2E ? input : output;
+  const pct = getPercent(signalVal);
+
+  if (isNaN(output) || !isFinite(output)) {
+    area.innerHTML = `<div class="warning-text">⚠ 計算できません。レンジを確認してね！</div>`;
+    return;
+  }
+
+  const toUnit = isS2E ? state.engUnit : state.signalUnit;
+  const labelTo = isS2E ? "工学値" : "信号値";
+
+  let warning = "";
+  if (signalVal < Math.min(state.signalLow, state.signalHigh) ||
+      signalVal > Math.max(state.signalLow, state.signalHigh)) {
+    warning = `<div class="warning-text">⚠ 信号レンジ外（${fmt(signalVal)} ${state.signalUnit}）だよ！</div>`;
+  }
+
+  const sL = state.signalLow, sH = state.signalHigh;
+  const minS = Math.min(sL, sH), maxS = Math.max(sL, sH);
+  const barPct = Math.max(0, Math.min(100, ((signalVal - minS) / (maxS - minS)) * 100));
+
+  area.innerHTML = `
+    <div class="result-card">
+      <div class="result-label">${labelTo}</div>
+      <div class="result-main">
+        <span class="result-value">${fmt(output)}</span>
+        <span class="result-unit">${toUnit}</span>
+        <button class="copy-btn" onclick="copyToClipboard('${fmt(output)}')">📋 コピー</button>
+      </div>
+      <div class="result-detail">
+        <div class="result-detail-item">
+          <div class="result-detail-label">信号</div>
+          <div class="result-detail-value">${fmt(signalVal)} ${state.signalUnit}</div>
+        </div>
+        <div class="result-detail-item">
+          <div class="result-detail-label">スケール</div>
+          <div class="result-detail-value">${fmt(pct, 2)} %</div>
+        </div>
+      </div>
+      <div class="scale-bar">
+        <div class="scale-track">
+          <div class="scale-fill" style="width:${barPct}%"></div>
+          <div class="scale-marker" style="left:${barPct}%"></div>
+        </div>
+        <div class="scale-labels">
+          <span>${fmt(state.signalLow)}${state.signalUnit}<br>${fmt(state.reverse ? state.engHigh : state.engLow)}${state.engUnit}</span>
+          <span>${fmt(state.signalHigh)}${state.signalUnit}<br>${fmt(state.reverse ? state.engLow : state.engHigh)}${state.engUnit}</span>
+        </div>
+      </div>
+      ${warning}
+    </div>
+  `;
+}
+
+document.querySelectorAll("[data-signal]").forEach(btn => {
+  btn.addEventListener("click", e => {
+    document.querySelectorAll("[data-signal]").forEach(b => b.classList.remove("active"));
+    e.currentTarget.classList.add("active");
+    state.signal = e.currentTarget.dataset.signal;
+    state.preset = 0;
+    const p = PRESETS[state.signal][0];
+    if (!p.custom) {
+      state.signalLow = p.low;
+      state.signalHigh = p.high;
+    }
+    state.signalUnit = p.unit;
+    state.mainInput = (state.signalLow + state.signalHigh) / 2;
+    state.multiInputs = [
+      state.signalLow,
+      state.signalLow + (state.signalHigh - state.signalLow) * 0.25,
+      state.signalLow + (state.signalHigh - state.signalLow) * 0.5,
+      state.signalLow + (state.signalHigh - state.signalLow) * 0.75,
+      state.signalHigh, ""
+    ];
+    render();
+  });
+});
+
+document.querySelectorAll("[data-direction]").forEach(btn => {
+  btn.addEventListener("click", e => {
+    // 既にアクティブなボタンを押した場合は何もしない
+    if (e.currentTarget.classList.contains("active")) return;
+    
+    const oldDirection = state.direction;
+    state.direction = e.currentTarget.dataset.direction;
+    
+    // 現在の計算結果を保持（空文字じゃなければ計算）
+    let currentOutput = NaN;
+    if (state.mainInput !== "" && !isNaN(state.mainInput)) {
+      currentOutput = oldDirection === "s2e" ? signalToEng(state.mainInput) : engToSignal(state.mainInput);
+    }
+
+    document.querySelectorAll("[data-direction]").forEach(b => b.classList.remove("active"));
+    e.currentTarget.classList.add("active");
+    
+    // 計算結果が正常なら次の入力値に引き継ぎ、ダメなら中央値をセット
+    if (!isNaN(currentOutput) && isFinite(currentOutput)) {
+      state.mainInput = currentOutput;
+    } else {
+      state.mainInput = state.direction === "s2e" 
+        ? (state.signalLow + state.signalHigh) / 2 
+        : (state.engLow + state.engHigh) / 2;
+    }
+    render();
+  });
+});
+
+["signalLow", "signalHigh", "engLow", "engHigh"].forEach(id => {
+  document.getElementById(id).addEventListener("input", e => {
+    state[id] = parseFloat(e.target.value) || 0;
+    state.preset = -1;
+    renderResult();
+  });
+});
+
+document.getElementById("engUnit").addEventListener("input", e => {
+  state.engUnit = e.target.value || "";
+  render();
+});
+
+document.getElementById("reverseRange").addEventListener("change", e => {
+  state.reverse = e.target.checked;
+  renderResult();
+});
+
+// 入力を空文字対応に変更
+document.getElementById("mainInput").addEventListener("input", e => {
+  const val = e.target.value;
+  state.mainInput = val === "" ? "" : parseFloat(val);
+  renderResult();
+});
+
+document.getElementById("multiToggle").addEventListener("click", () => {
+  state.multiMode = !state.multiMode;
+  render();
+});
+
+document.getElementById("infoBtn").addEventListener("click", () => {
+  document.getElementById("infoModal").classList.add("active");
+});
+document.querySelectorAll("[data-close]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".modal-overlay").forEach(m => m.classList.remove("active"));
+  });
+});
+document.querySelectorAll(".modal-overlay").forEach(m => {
+  m.addEventListener("click", e => {
+    if (e.target === m) m.classList.remove("active");
+  });
+});
+
+render();
+</script>
+</body>
+</html>
